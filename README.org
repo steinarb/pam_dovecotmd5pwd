@@ -1,0 +1,21 @@
+* A PAM module that updates the dovecot cram-md5 password file
+** Introduction
+
+This PAM module hooks into password changes, and updates the cram-md5
+file, used by the dovecot IMAP deamon, for cram-md5 authentication,
+when PAM is used to change a user's password.
+
+** Installation
+
+To build the module, type:
+: make
+
+To install the module, as root, either do:
+: make install
+or, after building, simply do:
+: cp pam_dovecotmd5pwd.so /lib/security/
+
+** TODO-list
+ - Read the cram-md5 password list from the dovecot configuration
+ - Use the same library as "doveadm pw" to create the hashed password,
+   instead of starting a subprocess
