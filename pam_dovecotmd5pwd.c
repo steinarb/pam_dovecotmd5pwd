@@ -157,8 +157,8 @@ write_new_password(const char* passwd_file_name, const char* username, const cha
 
         fclose(tmp_passwd_file);
     } else {
-            /* failure return code.  Failed to open the temp passwd file for write */
-            status = 0;
+        /* failure return code.  Failed to open the temp passwd file for write */
+        status = 0;
     }
 
     if (status) {
