@@ -37,7 +37,6 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
     const char* password;
     const char* encoded_password;
     char command_output_buffer[STRING_BUF_LEN];
-    char buf[STRING_BUF_LEN];
     if (pam_get_user(pamh, &username, NULL) != PAM_SUCCESS) {
         syslog(LOG_ERR, "cannot determine user name");
         return PAM_USER_UNKNOWN;
@@ -62,8 +61,6 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
             return PAM_AUTHTOK_ERR;
         }
 
-        sprintf(buf, "Username: %s  Password: %s  Encoded password: %s", username, password, encoded_password);
-        syslog(LOG_ERR, buf);
         write_new_password(password_file_name, username, encoded_password);
     }
 
@@ -181,10 +178,6 @@ write_new_password(const char* passwd_file_name, const char* username, const cha
             remove(tmp_passwd_file_name);
             status = 0;
         }
-
-        char buf[STRING_BUF_LEN];
-        sprintf(buf, "original password file owner: %d  group: %d", original_passwd_file_stat.st_uid, original_passwd_file_stat.st_gid);
-        syslog(LOG_ERR, buf);
     }
 
     return status;
