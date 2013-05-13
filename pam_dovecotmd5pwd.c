@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <pwd.h>
 
 #define PAM_SM_PASSWORD
 
@@ -27,6 +28,7 @@
 const char* hmac_md5_encode(const char* password, char* buffer);
 int is_valid_encoded_password(const char* encoded_password);
 int write_new_password(const char* passwd_file_name, const char* username, const char* encoded_password);
+int file_exists(const char* filename);
 
 
 PAM_EXTERN int
@@ -128,64 +130,84 @@ is_valid_encoded_password(const char* encoded_password) {
 int
 write_new_password(const char* passwd_file_name, const char* username, const char* encoded_password) {
     int status = 1;
-    char tmp_passwd_file_name[STRING_BUF_LEN];
-    sprintf(tmp_passwd_file_name, "%sXXXXXX", passwd_file_name);
-    mktemp(tmp_passwd_file_name);
 
-    FILE* tmp_passwd_file = fopen(tmp_passwd_file_name, "w");
-    if (tmp_passwd_file != NULL) {
-        FILE* passwd_file = fopen(passwd_file_name, "r");
-        if (passwd_file != NULL) {
-            char line_buf[STRING_BUF_LEN];
-            char username_match[STRING_BUF_LEN];
-            sprintf(username_match, "%s:", username);
-            while (fgets(line_buf, STRING_BUF_LEN, passwd_file) != NULL) {
-                if (strncmp(line_buf, username_match, strlen(username_match)) != 0) {
-                    /* Not a match for the user, just copy the line from the old file */
-                    fputs(line_buf, tmp_passwd_file);
-                } else {
-                    /* A match for the user, write a new line with the new password */
-                    fprintf(tmp_passwd_file, "%s:%s", username, encoded_password);
+    if (file_exists(passwd_file_name)) {
+        /* Replace the password for a user in an existing password file. */
+        char tmp_passwd_file_name[STRING_BUF_LEN];
+        sprintf(tmp_passwd_file_name, "%sXXXXXX", passwd_file_name);
+        mktemp(tmp_passwd_file_name);
+
+        FILE* tmp_passwd_file = fopen(tmp_passwd_file_name, "w");
+        if (tmp_passwd_file != NULL) {
+            FILE* passwd_file = fopen(passwd_file_name, "r");
+            if (passwd_file != NULL) {
+                char line_buf[STRING_BUF_LEN];
+                char username_match[STRING_BUF_LEN];
+                sprintf(username_match, "%s:", username);
+                while (fgets(line_buf, STRING_BUF_LEN, passwd_file) != NULL) {
+                    if (strncmp(line_buf, username_match, strlen(username_match)) != 0) {
+                        /* Not a match for the user, just copy the line from the old file */
+                        fputs(line_buf, tmp_passwd_file);
+                    } else {
+                        /* A match for the user, write a new line with the new password */
+                        fprintf(tmp_passwd_file, "%s:%s", username, encoded_password);
+                    }
                 }
+
+                fclose(passwd_file);
+            } else {
+                /* failure return code.  Failed to open the original passwd file for read */
+                status = 0;
             }
 
-            fclose(passwd_file);
+            fclose(tmp_passwd_file);
+
+            if (!status) {
+                /* Couldn't read the existing password file, removing the b0rked temp file */
+                remove(tmp_passwd_file_name);
+            }
         } else {
-            /* failure return code.  Failed to open the original passwd file for read */
+            /* failure return code.  Failed to open the temp passwd file for write */
             status = 0;
         }
 
-        fclose(tmp_passwd_file);
+        if (status) {
+            /* Make sure the temp file has the same ownership as the old password file (permissions are restricted by PAM) */
+            struct stat original_passwd_file_stat;
+            stat(passwd_file_name, &original_passwd_file_stat);
+            chown(tmp_passwd_file_name, original_passwd_file_stat.st_uid, original_passwd_file_stat.st_gid);
 
-        if (!status) {
-            /* Couldn't read the existing password file, removing the b0rked temp file */
-            remove(tmp_passwd_file_name);
+            char lock_file_name[STRING_BUF_LEN];
+            sprintf(lock_file_name, "%s.lock", passwd_file_name);
+            FILE* lock_file = fopen(lock_file_name, "w");
+            if (lock_file != NULL) {
+                /* remove the original file and swap in the new one in its place */
+                remove(passwd_file_name);
+                rename(tmp_passwd_file_name, passwd_file_name);
+
+                /* close and clean up the lock file */
+                fclose(lock_file);
+                remove(lock_file_name);
+            } else {
+                /* failed to aquire the lock file.  Cleaning up the temp file and set status to failure */
+                remove(tmp_passwd_file_name);
+                status = 0;
+            }
         }
     } else {
-        /* failure return code.  Failed to open the temp passwd file for write */
-        status = 0;
-    }
+        /* The original password file didn't exist.  Create a new one. */
+        FILE* passwd_file = fopen(passwd_file_name, "w");
+        if (passwd_file != NULL) {
+            fprintf(passwd_file, "%s:%s", username, encoded_password);
+            fclose(passwd_file);
 
-    if (status) {
-        /* Make sure the temp file has the same ownership as the old password file (permissions are restricted by PAM) */
-        struct stat original_passwd_file_stat;
-        stat(passwd_file_name, &original_passwd_file_stat);
-        chown(tmp_passwd_file_name, original_passwd_file_stat.st_uid, original_passwd_file_stat.st_gid);
-
-        char lock_file_name[STRING_BUF_LEN];
-        sprintf(lock_file_name, "%s.lock", passwd_file_name);
-        FILE* lock_file = fopen(lock_file_name, "w");
-        if (lock_file != NULL) {
-            /* remove the original file and swap in the new one in its place */
-            remove(passwd_file_name);
-            rename(tmp_passwd_file_name, passwd_file_name);
-
-            /* close and clean up the lock file */
-            fclose(lock_file);
-            remove(lock_file_name);
+            /* If user "dovecot" exists, make it the owner of the password file */
+            struct passwd* dovecot_pw = getpwnam("dovecot");
+            if (dovecot_pw != NULL) {
+                chown(passwd_file_name, dovecot_pw->pw_uid, dovecot_pw->pw_gid);
+            }
         } else {
-            /* failed to aquire the lock file.  Cleaning up the temp file and set status to failure */
-            remove(tmp_passwd_file_name);
+            /* Unable to create a password file.  Return an error. */
             status = 0;
         }
     }
@@ -193,3 +215,8 @@ write_new_password(const char* passwd_file_name, const char* username, const cha
     return status;
 }
 
+int
+file_exists(const char* filename) {
+    struct stat dummy;
+    return (stat(filename, &dummy) == 0);
+}
