@@ -156,6 +156,11 @@ write_new_password(const char* passwd_file_name, const char* username, const cha
         }
 
         fclose(tmp_passwd_file);
+
+        if (!status) {
+            /* Couldn't read the existing password file, removing the b0rked temp file */
+            remove(tmp_passwd_file_name);
+        }
     } else {
         /* failure return code.  Failed to open the temp passwd file for write */
         status = 0;
