@@ -15,6 +15,35 @@ To install the module, as root, either do:
 or, after building, simply do:
 : cp pam_dovecotmd5pwd.so /lib/security/
 
+The final part is to add the new module to the
+=/etc/pam.d/common-password= file.  Add the following line in a
+suitable place:
+: password	required			pam_dovecotmd5pwd.so
+
+I'm not entirely sure of where in the file to put it, but the comments
+in =/etc/pam.d/common-password= say:
+#+begin_example
+  # As of pam 1.0.1-6, this file is managed by pam-auth-update by default.
+  # To take advantage of this, it is recommended that you configure any
+  # local modules either before or after the default block, and use
+  # pam-auth-update to manage selection of other modules.  See
+  # pam-auth-update(8) for details.
+#+end_example
+
+From that comment, what I've done is put the config for the new
+module, after the line
+: # end of pam-auth-update config
+
+I.e. like so:
+#+begin_example
+  ...
+  # end of pam-auth-update config
+  
+  # Update cram-md5 passwords for dovecot
+  password        required                        pam_dovecotmd5pwd.so
+#+end_example
+
+
 ** TODO-list
  - Read the cram-md5 password list from the dovecot configuration
  - Use the same library as "doveadm pw" to create the hashed password,
