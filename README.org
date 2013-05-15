@@ -8,6 +8,14 @@ when PAM is used to change a user's password.
 This PAM module has only been tested out in debian Wheezy (this just
 because stable, at the time of writing).
 
+** Disclaimer
+
+The author takes no responsibility for damages to your system or
+crashes to your system, that may be caused by using this module.
+
+[[http://en.wikipedia.org/wiki/Caveat_emptor][Caveat emptor]]!
+
+
 ** Installation
 
 To build the module, type:
