@@ -5,6 +5,9 @@ This PAM module hooks into password changes, and updates the cram-md5
 file, used by the dovecot IMAP deamon, for cram-md5 authentication,
 when PAM is used to change a user's password.
 
+This PAM module has only been tested out in debian Wheezy (this just
+because stable, at the time of writing).
+
 ** Installation
 
 To build the module, type:
