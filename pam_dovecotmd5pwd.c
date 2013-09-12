@@ -80,9 +80,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 
         if (!write_new_password(password_file_name, username, encoded_password)) {
             /* Report the failure, but do not fail the module */
-            char buf[STRING_BUF_LEN];
-            sprintf(buf, "Failed to update dovecot cram-md5 password for %s", username);
-            syslog(LOG_ERR, buf);
+            syslog(LOG_ERR, "Failed to update dovecot cram-md5 password for %s", username);
         }
     }
 
