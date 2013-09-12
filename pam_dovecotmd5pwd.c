@@ -86,7 +86,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
         }
     }
 
-    return PAM_SUCCESS; /* This method is always "successful" even when it fails */
+    return PAM_SUCCESS;
 }
 
 #ifdef PAM_STATIC
