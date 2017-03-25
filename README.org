@@ -5,9 +5,20 @@ This PAM module hooks into password changes, and updates the cram-md5
 file, used by the dovecot IMAP deamon, for cram-md5 authentication,
 when PAM is used to change a user's password.
 
-This PAM module has only been tested out in debian Wheezy (this just
-because stable, at the time of writing).
+This PAM module has only been tested out in debian:
+ - Originally built and tested on debian Wheezy (debian stable in May 2013)
+ - Used as-is on debian Jessie when the system was upgraded
+ - Recompiled on a 64bit debian Jessie system. The old .so failed to load, message in /var/log/auth.log :
+   : PAM unable to dlopen(pam_dovecotmd5pwd.so): /lib/security/pam_dovecotmd5pwd.so: wrong ELF class: ELFCLASS32
 
+** Requirements
+
+This module should work on all GNU/linux systems with dovecot and the libpam development files (PAM itself is AFAIK part of all GNU/linux distributions).
+
+To install the requirements on a debian system, type the following in a root command line shell:
+#+BEGIN_EXAMPLE
+  apt-get install dovecot-imapd libpam0g-dev
+#+END_EXAMPLE
 
 ** Installation
 
